@@ -13,6 +13,8 @@ Cloud shader is created by ChatGPT and Codex with some adjustment.
 
 Sky picture by Vedad Colic from [Pixel](https://www.pexels.com/photo/white-clothes-under-blue-sky-577279/)
 
+Noto Sans JP font from [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
+
 # Web integration guide for Mugen Wallpaper
 
 This document explains how a web page running inside the app’s WKWebView can consume:
@@ -25,9 +27,21 @@ No special setup is required on your page beyond adding event listeners.
 ## What the app injects
 
 1) Synthetic mousemove events
+The app does not pass through raw mouse events from the system. Instead, it synthesizes `mousemove` events on the `window` object, providing only the `clientX` and `clientY` coordinates. This allows web wallpapers to react to mouse position without full event propagation.
+
 - Event type: "mousemove"
 - Dispatched on: window
-- Coordinates: clientX/clientY in CSS pixels, relative to the top-left of the viewport, matching standard browser semantics.
+- Coordinates: `clientX`/`clientY` in CSS pixels, relative to the top-left of the viewport, matching standard browser semantics.
+
+Example usage in JavaScript:
+```javascript
+window.addEventListener('mousemove', (event) => {
+  const mouseX = event.clientX; // Mouse X coordinate
+  const mouseY = event.clientY; // Mouse Y coordinate
+  // Use mouseX and mouseY for your web wallpaper logic
+  console.log(`Mouse X: ${mouseX}, Mouse Y: ${mouseY}`);
+});
+```
 
 2) Native system metrics events
 - Event type: "nativeMetrics" (CustomEvent)
@@ -55,4 +69,13 @@ No special setup is required on your page beyond adding event listeners.
   },
   "screenIndex": 0
 }
+
+### screenIndex
+
+The `window.screenIndex` property indicates the index of the screen where the web wallpaper is currently displayed.
+- `0`: Represents the primary or first screen.
+- `1`: Represents the second screen.
+- And so on for additional screens.
+
+You can use this value to adjust your web wallpaper's content or layout based on which screen it's on.
 ```
