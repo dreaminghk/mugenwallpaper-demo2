@@ -124,10 +124,11 @@
 
         // resize handling
         function resize() {
-          // Render at a capped DPR for performance (volumetric raymarch)
-          const targetDPR = 1.5;
+          // Render at reduced resolution for performance (scaled up via CSS)
+          const targetDPR = 1.0;     // cap device pixel ratio for speed
+          const renderScale = 0.66;  // render ~66% of viewport resolution for 120Hz
           const device = Math.max(1, window.devicePixelRatio || 1);
-          const dpr = Math.min(device, targetDPR);
+          const dpr = Math.min(device, targetDPR) * renderScale;
           const w = Math.floor(window.innerWidth * dpr);
           const h = Math.floor(window.innerHeight * dpr);
           if (canvas.width !== w || canvas.height !== h) {
@@ -176,6 +177,8 @@
           uniform float u_thickness;  // cloud layer thickness in arbitrary units
           uniform float u_scale;      // spatial frequency scale
           uniform float u_lightAbsorption; // how quickly light is absorbed
+
+          const bool FAST_MODE = true; // ultra-fast 2D lighting approximation for 120Hz
 
           // Hash helpers
           float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
@@ -229,14 +232,14 @@
             return v;
           }
 
-          // Fractal Brownian Motion (3D)
+          // Fractal Brownian Motion (3D) — reduced octaves for performance
           float fbm3(vec3 p) {
             float v = 0.0;
             float a = 0.5;
             mat3 m = mat3( 1.6,  1.2,  0.0,
                            -1.2,  1.6,  0.0,
                             0.0,  0.0,  1.7);
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 4; i++) {
               v += a * noise3(p);
               p = m * p * 1.8 + 0.1;
               a *= 0.5;
@@ -246,9 +249,10 @@
 
           // Simple curl-like warp from 2D FBM gradients to add turbulence
           vec2 domainWarp(vec2 p) {
-            float e = 0.15;
-            float n1 = fbm(p * 1.2);
-            float n2 = fbm((p + vec2(5.2, 1.3)) * 1.2);
+            // Reduced warp for less "wavy" motion
+            float e = 0.06;
+            float n1 = fbm(p * 0.9);
+            float n2 = fbm((p + vec2(5.2, 1.3)) * 0.9);
             // pseudo curl by swapping gradients
             return e * vec2(n2 - n1, n1 - n2);
           }
@@ -258,6 +262,37 @@
             float g2 = g * g;
             float denom = pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5);
             return (1.0 - g2) / (4.0 * 3.14159265 * denom);
+          }
+
+          // Fast 2D approximation path: single-pass, no raymarch
+          vec4 fastClouds(vec2 uv, vec2 advect, vec2 aspect) {
+            // Domain warp for turbulent structures
+            vec2 warped = uv * u_scale + advect + domainWarp(uv * 0.5 + 0.02 * u_time);
+            float base = fbm(warped * 1.3);
+            float detail = fbm(warped * 2.2 + 13.7);
+            float micro = fbm(warped * 4.0 + 31.1);
+            float n = mix(base, detail, 0.30);
+            n = mix(n, micro, 0.10);
+            // Coverage and shaping (lighter overall)
+            float d = smoothstep(u_coverage - 0.12, u_coverage + 0.06, n);
+            d = pow(d, 1.25) * u_density; // lift highlights less, keep edges soft
+            d = clamp(d, 0.0, 1.0);
+
+            // Cheap directional self-shadowing: sample density along sun direction in screen space
+            vec2 sd = normalize(vec2(u_sunDir.x, u_sunDir.y) + vec2(1e-5));
+            sd *= 0.09; // smaller step reduces banding/waves
+            float occ = 0.0;
+            occ += smoothstep(u_coverage - 0.10, u_coverage + 0.10, fbm((warped + sd) * 1.4));
+            occ += smoothstep(u_coverage - 0.10, u_coverage + 0.10, fbm((warped + sd*2.0) * 1.3)) * 0.6;
+            occ += smoothstep(u_coverage - 0.10, u_coverage + 0.10, fbm((warped + sd*3.5) * 1.2)) * 0.35;
+            float shadow = clamp(1.0 - occ * 0.38, 0.45, 1.0);
+
+            // Lighting and color
+            vec3 albedo = vec3(1.16, 1.16, 1.20);
+            vec3 light = u_sunColor * (0.65 + 0.35 * shadow);
+            vec3 color = albedo * light;
+            float alpha = clamp(0.06 + 0.85 * d, 0.0, 1.0); // thinner overall opacity
+            return vec4(color, alpha);
           }
 
           void main() {
@@ -271,12 +306,21 @@
             vec2 wind = u_wind;
             vec2 advect = wind * t;
 
-            // Domain warp for turbulent eddies
+            if (FAST_MODE) {
+              gl_FragColor = fastClouds(uv, advect, aspect);
+              return;
+            }
+
+            // Domain warp for turbulent eddies (volumetric path)
             vec2 warped = uv * u_scale + advect + domainWarp(uv * 0.6 + 0.1 * t);
 
+            // Define a coverage mask used in volumetric density shaping
+            float baseMask = fbm(uv * (0.9 * u_scale) + advect * 0.5);
+            float cover = smoothstep(u_coverage - 0.08, u_coverage + 0.08, baseMask);
+
             // Raymarch parameters (vertical integration through layer)
-            const int STEPS = 28;      // marching steps through the cloud thickness
-            const int LIGHT_STEPS = 8; // steps for light shadowing
+            const int STEPS = 16;      // marching steps through the cloud thickness (lowered)
+            const int LIGHT_STEPS = 5; // steps for light shadowing (lowered)
             float ds = u_thickness / float(STEPS);
             float heightBase = 0.0; // base height reference
 
@@ -300,6 +344,7 @@
               float y = (float(i) + 0.5) / float(STEPS);
               float dome = exp(-4.0 * (y - 0.5) * (y - 0.5));
               d *= dome;
+              d *= mix(0.6, 1.0, cover);
               d *= u_density;
 
               if (d > 0.001) {
@@ -392,11 +437,11 @@
 
         // Default physical-ish parameters
         const params = {
-          coverage: 0.52,      // lower -> more clouds
-          density: 1.6,        // optical density
-          thickness: 1.8,      // layer thickness
-          scale: 0.7,          // spatial scale (lower -> larger structures)
-          lightAbsorption: 1.8 // how quickly light is absorbed through cloud
+          coverage: 0.50,      // higher -> fewer/thinner clouds
+          density: 0.9,        // lower opacity overall
+          thickness: 1.2,      // kept for volumetric path
+          scale: 0.75,         // spatial scale
+          lightAbsorption: 1.5 // volumetric path only
         };
 
         function sunDirection(t) {
@@ -411,19 +456,30 @@
           return [-x, -y, -z];
         }
 
+        // Optional lightweight FPS cap to reduce GPU usage
+        const targetFPS = 0; // 0 = unlimited (use monitor refresh)
+        const minFrameTime = targetFPS > 0 ? 1.0 / targetFPS : 0.0;
+        let lastRenderT = 0;
+
         function render() {
           resize();
           const now = performance.now();
           const t = (now - start) / 1000.0;
+          if (minFrameTime > 0.0 && (t - lastRenderT) < minFrameTime) {
+            requestAnimationFrame(render);
+            return;
+          }
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.useProgram(prog);
           gl.uniform1f(u_time, t);
           gl.uniform2f(u_resolution, canvas.width, canvas.height);
           // Gentle varying wind with slight rotation over time
-          const windSpeed = 0.015; // world units per second
-          const windDir = [Math.cos(t * 0.07), Math.sin(t * 0.05 + 1.2)];
-          gl.uniform2f(u_wind, windDir[0] * windSpeed, windDir[1] * windSpeed);
+          // Use a stable, gentle wind to avoid "wavy" look
+          const windSpeed = 0.006; // world units per second
+          const windDir = [0.7, 0.2];
+          const len = Math.hypot(windDir[0], windDir[1]) || 1.0;
+          gl.uniform2f(u_wind, (windDir[0] / len) * windSpeed, (windDir[1] / len) * windSpeed);
 
           const sd = sunDirection(t);
           gl.uniform3f(u_sunDir, sd[0], sd[1], sd[2]);
@@ -434,6 +490,7 @@
           gl.uniform1f(u_scale, params.scale);
           gl.uniform1f(u_lightAbsorption, params.lightAbsorption);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
+          lastRenderT = t;
           requestAnimationFrame(render);
         }
 
