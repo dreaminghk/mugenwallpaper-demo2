@@ -351,11 +351,11 @@
       })();
 
       // Mouse coordinates
-      const mouseCoordsDiv = document.getElementById("mouse-coords");
-      window.addEventListener("mousemove", (event) => {
-        const { clientX, clientY } = event;
-        mouseCoordsDiv.textContent = `X: ${clientX}, Y: ${clientY}`;
-      });
+    //   const mouseCoordsDiv = document.getElementById("mouse-coords");
+    //   window.addEventListener("mousemove", (event) => {
+    //     const { clientX, clientY } = event;
+    //     mouseCoordsDiv.textContent = `X: ${clientX}, Y: ${clientY}`;
+    //   });
     </script>
 
     <div id="clock">
@@ -373,7 +373,25 @@
       <div id="location-display"></div>
       <div id="date-display"></div>
       <div id="clock-content-wrapper"></div>
-      <div id="metrics-display"></div>
+    </div>
+
+    <div id="metrics-container">
+      <div class="metric-box">
+        <div class="metric-title">CPU</div>
+        <div id="cpu-metric" class="metric-value">-</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">RAM</div>
+        <div id="ram-metric" class="metric-value">-</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">Disk</div>
+        <div id="disk-metric" class="metric-value">-</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title">Net</div>
+        <div id="net-metric" class="metric-value">-</div>
+      </div>
     </div>
     <style>
       #clock {
@@ -439,6 +457,51 @@
         font-family: monospace;
         font-size: 12px;
       }
+
+      #metrics-container {
+        position: absolute;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+      }
+
+      .metric-box {
+        background: rgba(0, 0, 0, 0.10);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 20px;
+        color: white;
+        font-family: "NotoSansJPVariable", system-ui, -apple-system, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans",
+          sans-serif;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        width: 150px;
+        height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .metric-title {
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .metric-value {
+        font-size: 20px;
+      }
+
+      .net-label {
+        font-size: 10px;
+      }
+
+      .net-value {
+        font-size: 16px;
+      }
     </style>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -475,14 +538,19 @@
         updateClock();
 
         const metricsDisplay = document.getElementById('metrics-display');
+        const cpuMetric = document.getElementById('cpu-metric');
+        const ramMetric = document.getElementById('ram-metric');
+        const diskMetric = document.getElementById('disk-metric');
+        const netMetric = document.getElementById('net-metric');
+
         window.addEventListener('nativeMetrics', (event) => {
           const { cpu, memory, disk, network } = event.detail;
-          metricsDisplay.innerHTML = `
-            <strong>CPU:</strong> ${cpu.totalPercent.toFixed(2)}%<br>
-            <strong>Mem:</strong> ${(memory.usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB / ${(memory.totalBytes / 1024 / 1024 / 1024).toFixed(2)}GB<br>
-            <strong>Disk:</strong> ${(disk.freeBytes / 1024 / 1024 / 1024).toFixed(2)}GB free<br>
-            <strong>Net:</strong> DL: ${(network.rxBytesPerSec / 1024).toFixed(2)}KB/s, UL: ${(network.txBytesPerSec / 1024).toFixed(2)}KB/s
-          `;
+
+          cpuMetric.textContent = `${cpu.totalPercent.toFixed(2)}%`;
+          ramMetric.textContent = `${(memory.usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB`;
+          const diskUsedPercentage = 100 - (disk.freeBytes / disk.totalBytes) * 100;
+          diskMetric.textContent = `${diskUsedPercentage.toFixed(2)}%`;
+          netMetric.innerHTML = `<span class="net-label">↓</span> <span class="net-value">${(network.rxBytesPerSec / 1024).toFixed(2)}KB/s</span><br><span class="net-label">↑</span> <span class="net-value">${(network.txBytesPerSec / 1024).toFixed(2)}KB/s</span>`;
         });
       });
     </script>
