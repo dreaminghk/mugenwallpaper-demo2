@@ -506,8 +506,9 @@
         //   }
 
           if (window.screenIndex !== 0) {
-            document.getElementById('metrics-container').style.display = 'none';
+            document.getElementById('metrics-display-line').style.display = 'none';
             document.getElementById('clock').style.display = 'none';
+            document.getElementById('text').style.display = 'none'; // Hide the 'text' element
             return;
           }
 
