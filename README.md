@@ -8,4 +8,7 @@ You can use the github page link (https://dreaminghk.github.io/mugenwallpaper-de
 Click [here](https://dreaminghk.github.io/mugenwallpaper-demo2/demo.html) to see the demo
 
 Attribution:
+
+Cloud shader is created by ChatGPT and Codex with some adjustment.
+
 Sky picture by Vedad Colic from [Pixel](https://www.pexels.com/photo/white-clothes-under-blue-sky-577279/)
