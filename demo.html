@@ -361,16 +361,6 @@
 
     <div id="clock">
       <div class="clock-backdrop"></div>
-      <svg
-        class="svg-mask"
-        width="100%"
-        height="100%"
-        preserveAspectRatio="none"
-      >
-        <mask id="frostyGlassMask">
-          <rect width="100%" height="100%" fill="white" rx="10" ry="10" />
-        </mask>
-      </svg>
       <div id="location-display"></div>
       <div id="date-display"></div>
       <div id="clock-content-wrapper"></div>
@@ -409,15 +399,6 @@
         inset: 0;
         height: 100%; /* Cover the entire clock div */
         width: 100%; /* Cover the entire clock div */
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        mask-image: url(#frostyGlassMask);
-        -webkit-mask-image: url(#frostyGlassMask);
-        pointer-events: none;
-      }
-      .svg-mask {
-        position: absolute;
-        inset: 0;
         pointer-events: none;
       }
       #location-display {
