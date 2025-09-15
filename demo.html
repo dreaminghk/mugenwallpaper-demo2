@@ -88,6 +88,7 @@
 	-->
   </head>
   <body>
+    <div id="screen-index-display" style="position: fixed; top: 20px; left: 20px; color: white; font-size: 24px; z-index: 9999;"></div>
     <style>
       /* Local variable font: Noto Sans JP (variable weight). */
       @font-face {
@@ -468,22 +469,23 @@
       }
 
       .metric-box {
-        background: rgba(0, 0, 0, 0.10);
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
         padding: 20px;
         color: white;
         font-family: "NotoSansJPVariable", system-ui, -apple-system, "Segoe UI",
           Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans",
           sans-serif;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         width: 150px;
         height: 80px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        mask-image: url(#frostyGlassMask);
+        -webkit-mask-image: url(#frostyGlassMask);
+        pointer-events: none;
       }
 
       .metric-title {
@@ -537,6 +539,7 @@
         updateDateAndLocation();
         updateClock();
 
+        const screenIndexDisplay = document.getElementById('screen-index-display');
         const metricsDisplay = document.getElementById('metrics-display');
         const cpuMetric = document.getElementById('cpu-metric');
         const ramMetric = document.getElementById('ram-metric');
@@ -544,7 +547,17 @@
         const netMetric = document.getElementById('net-metric');
 
         window.addEventListener('nativeMetrics', (event) => {
-          const { cpu, memory, disk, network } = event.detail;
+          const { cpu, memory, disk, network, screenIndex } = event.detail;
+
+        //   if (screenIndexDisplay) {
+        //     screenIndexDisplay.textContent = `Screen: ${window.screenIndex}`;
+        //   }
+
+          if (window.screenIndex !== 0) {
+            document.getElementById('metrics-container').style.display = 'none';
+            document.getElementById('clock').style.display = 'none';
+            return;
+          }
 
           cpuMetric.textContent = `${cpu.totalPercent.toFixed(2)}%`;
           ramMetric.textContent = `${(memory.usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB`;
