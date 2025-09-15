@@ -111,20 +111,23 @@
 
     <div id="element"></div>
 
-    <!-- Fullscreen transparent canvas for procedural clouds (WebGL) -->
+    <!-- Fullscreen transparent canvas for physically-inspired volumetric clouds (WebGL) -->
     <canvas id="clouds" aria-hidden="true"></canvas>
 
     <script>
-      // WebGL procedural clouds: renders an animated FBM noise cloud layer
+      // WebGL volumetric clouds: physically-inspired single-scattering with advection
       (function () {
-  const canvas = document.getElementById('clouds');
-  // Request a WebGL context with alpha and without premultiplied alpha to simplify blending
-  const gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
+        const canvas = document.getElementById('clouds');
+        // Request a WebGL context with alpha and without premultiplied alpha to simplify blending
+        const gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
         if (!gl) return; // WebGL not available
 
         // resize handling
         function resize() {
-          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          // Render at a capped DPR for performance (volumetric raymarch)
+          const targetDPR = 1.5;
+          const device = Math.max(1, window.devicePixelRatio || 1);
+          const dpr = Math.min(device, targetDPR);
           const w = Math.floor(window.innerWidth * dpr);
           const h = Math.floor(window.innerHeight * dpr);
           if (canvas.width !== w || canvas.height !== h) {
@@ -159,17 +162,26 @@
           }
         `;
 
-        // fragment shader: FBM noise + coloring to create soft clouds
+        // fragment shader: volumetric single-scattering through a 2.5D cloud layer
         const fsSource = `
           precision highp float;
           varying vec2 v_uv;
           uniform float u_time;
           uniform vec2 u_resolution;
+          uniform vec2 u_wind;
+          uniform vec3 u_sunDir;      // normalized sun direction (from sky to scene)
+          uniform vec3 u_sunColor;    // sunlight color
+          uniform float u_coverage;   // base coverage threshold [0..1]
+          uniform float u_density;    // density scale
+          uniform float u_thickness;  // cloud layer thickness in arbitrary units
+          uniform float u_scale;      // spatial frequency scale
+          uniform float u_lightAbsorption; // how quickly light is absorbed
 
-          // Simple pseudo-random
-          float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7))) * 43758.5453123); }
+          // Hash helpers
+          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+          float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123); }
 
-          // Value noise
+          // 2D value noise
           float noise(vec2 p) {
             vec2 i = floor(p);
             vec2 f = fract(p);
@@ -182,7 +194,29 @@
             return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
           }
 
-          // Fractal Brownian Motion
+          // 3D value noise
+          float noise3(vec3 p) {
+            vec3 i = floor(p);
+            vec3 f = fract(p);
+            float n000 = hash3(i + vec3(0.0, 0.0, 0.0));
+            float n100 = hash3(i + vec3(1.0, 0.0, 0.0));
+            float n010 = hash3(i + vec3(0.0, 1.0, 0.0));
+            float n110 = hash3(i + vec3(1.0, 1.0, 0.0));
+            float n001 = hash3(i + vec3(0.0, 0.0, 1.0));
+            float n101 = hash3(i + vec3(1.0, 0.0, 1.0));
+            float n011 = hash3(i + vec3(0.0, 1.0, 1.0));
+            float n111 = hash3(i + vec3(1.0, 1.0, 1.0));
+            vec3 u = f * f * (3.0 - 2.0 * f);
+            float nx00 = mix(n000, n100, u.x);
+            float nx10 = mix(n010, n110, u.x);
+            float nx01 = mix(n001, n101, u.x);
+            float nx11 = mix(n011, n111, u.x);
+            float nxy0 = mix(nx00, nx10, u.y);
+            float nxy1 = mix(nx01, nx11, u.y);
+            return mix(nxy0, nxy1, u.z);
+          }
+
+          // Fractal Brownian Motion (2D)
           float fbm(vec2 p) {
             float v = 0.0;
             float a = 0.5;
@@ -195,30 +229,113 @@
             return v;
           }
 
+          // Fractal Brownian Motion (3D)
+          float fbm3(vec3 p) {
+            float v = 0.0;
+            float a = 0.5;
+            mat3 m = mat3( 1.6,  1.2,  0.0,
+                           -1.2,  1.6,  0.0,
+                            0.0,  0.0,  1.7);
+            for (int i = 0; i < 5; i++) {
+              v += a * noise3(p);
+              p = m * p * 1.8 + 0.1;
+              a *= 0.5;
+            }
+            return v;
+          }
+
+          // Simple curl-like warp from 2D FBM gradients to add turbulence
+          vec2 domainWarp(vec2 p) {
+            float e = 0.15;
+            float n1 = fbm(p * 1.2);
+            float n2 = fbm((p + vec2(5.2, 1.3)) * 1.2);
+            // pseudo curl by swapping gradients
+            return e * vec2(n2 - n1, n1 - n2);
+          }
+
+          // Henyey-Greenstein phase (simplified)
+          float hgPhase(float cosTheta, float g) {
+            float g2 = g * g;
+            float denom = pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5);
+            return (1.0 - g2) / (4.0 * 3.14159265 * denom);
+          }
+
           void main() {
-            vec2 uv = v_uv * u_resolution / min(u_resolution.x, u_resolution.y);
-            // animate the sample coordinates
-            float t = u_time * 0.03;
-            vec2 q = uv + vec2(t * 0.7, t * 0.3);
+            // Normalize pixel coordinates to world-like meters
+            vec2 aspect = vec2(u_resolution.x / min(u_resolution.x, u_resolution.y),
+                               u_resolution.y / min(u_resolution.x, u_resolution.y));
+            vec2 uv = (v_uv * 2.0 - 1.0) * aspect; // centered coordinates
 
-            // increase base FBM scale for larger masses
-            float n = fbm(q * 1.6);
-            // lower threshold to produce thicker clouds
-            float clouds = smoothstep(0.35, 0.78, n);
+            float t = u_time;
+            // Wind advection of the XY domain
+            vec2 wind = u_wind;
+            vec2 advect = wind * t;
 
-            // Add stronger finer detail to thicken edges
-            float detail = fbm(q * 3.5 + 100.0);
-            clouds += 0.28 * detail;
-            clouds = clamp(clouds, 0.0, 1.0);
+            // Domain warp for turbulent eddies
+            vec2 warped = uv * u_scale + advect + domainWarp(uv * 0.6 + 0.1 * t);
 
-            // color: whiter clouds — pull fully to white for dense areas
-            vec3 cloudColor = mix(vec3(1.0), vec3(1.06,1.06,1.08), clouds);
-            // make clouds mostly opaque where density is high; keep a small fade for edges
-            float alpha = smoothstep(0.15, 0.6, clouds);
-            alpha = mix(0.05, 0.98, alpha); // edges small alpha, cores almost opaque
+            // Raymarch parameters (vertical integration through layer)
+            const int STEPS = 28;      // marching steps through the cloud thickness
+            const int LIGHT_STEPS = 8; // steps for light shadowing
+            float ds = u_thickness / float(STEPS);
+            float heightBase = 0.0; // base height reference
 
-            // final output: straight alpha (we requested premultipliedAlpha: false)
-            gl_FragColor = vec4(cloudColor, alpha);
+            // Single scattering integration
+            float transmittance = 1.0; // Beer-Lambert T
+            vec3  radiance = vec3(0.0);
+
+            // View direction assumed from above looking down; for wallpaper this is fine
+            vec3 V = vec3(0.0, -1.0, 0.0);
+            float cosTheta = clamp(dot(normalize(-V), normalize(u_sunDir)), -1.0, 1.0);
+            float phase = hgPhase(cosTheta, 0.7);
+
+            for (int i = 0; i < STEPS; i++) {
+              float h = heightBase + (float(i) + 0.5) * ds; // sample at slice center
+              // 3D FBM density field
+              vec3 p = vec3(warped, h * 0.8 + 10.0);
+              float base = fbm3(p);
+              // Coverage threshold: shift noise so that only the upper tail forms clouds
+              float d = smoothstep(u_coverage, 1.0, base);
+              // Vertical shaping (more density near mid of the layer)
+              float y = (float(i) + 0.5) / float(STEPS);
+              float dome = exp(-4.0 * (y - 0.5) * (y - 0.5));
+              d *= dome;
+              d *= u_density;
+
+              if (d > 0.001) {
+                // Light attenuation along sun ray for soft self-shadow
+                float lightT = 1.0;
+                vec3 lp = p;
+                float lds = (u_thickness * 0.8) / float(LIGHT_STEPS);
+                vec3 ldir = normalize(u_sunDir);
+                for (int j = 0; j < LIGHT_STEPS; j++) {
+                  lp += ldir * lds;
+                  float ld = smoothstep(u_coverage, 1.0, fbm3(lp));
+                  float ly = float(j) / float(LIGHT_STEPS);
+                  float ldome = exp(-4.0 * (ly - 0.2) * (ly - 0.2));
+                  ld *= ldome * u_density;
+                  lightT *= exp(-u_lightAbsorption * ld * lds);
+                }
+
+                // In-scattering from sunlight at this segment
+                vec3 scatter = u_sunColor * phase * lightT * d * ds;
+
+                // Apply view transmittance to accumulated radiance
+                radiance += transmittance * scatter;
+                // Update view transmittance by extinction
+                transmittance *= exp(-d * ds);
+                if (transmittance < 0.01) break;
+              }
+            }
+
+            // Convert integrated result into color/alpha.
+            // Alpha represents how much the cloud occludes background (1 - transmittance)
+            float alpha = clamp(1.0 - transmittance, 0.0, 1.0);
+            // Subtle bluish shadowing for thicker regions to match sky lighting
+            vec3 cloudColor = mix(vec3(1.05), vec3(1.1, 1.1, 1.12), 0.2);
+            vec3 color = cloudColor * radiance;
+
+            gl_FragColor = vec4(color, alpha);
           }
         `;
 
@@ -262,8 +379,37 @@
         // uniforms
         const u_time = gl.getUniformLocation(prog, 'u_time');
         const u_resolution = gl.getUniformLocation(prog, 'u_resolution');
+        const u_wind = gl.getUniformLocation(prog, 'u_wind');
+        const u_sunDir = gl.getUniformLocation(prog, 'u_sunDir');
+        const u_sunColor = gl.getUniformLocation(prog, 'u_sunColor');
+        const u_coverage = gl.getUniformLocation(prog, 'u_coverage');
+        const u_density = gl.getUniformLocation(prog, 'u_density');
+        const u_thickness = gl.getUniformLocation(prog, 'u_thickness');
+        const u_scale = gl.getUniformLocation(prog, 'u_scale');
+        const u_lightAbsorption = gl.getUniformLocation(prog, 'u_lightAbsorption');
 
         let start = performance.now();
+
+        // Default physical-ish parameters
+        const params = {
+          coverage: 0.52,      // lower -> more clouds
+          density: 1.6,        // optical density
+          thickness: 1.8,      // layer thickness
+          scale: 0.7,          // spatial scale (lower -> larger structures)
+          lightAbsorption: 1.8 // how quickly light is absorbed through cloud
+        };
+
+        function sunDirection(t) {
+          // Slow cycle of sun over time; keep moderately high to avoid dark scene
+          const floatTime = t * 0.02;
+          const elev = 0.8 - 0.15 * Math.cos(floatTime * 0.2); // radians
+          const azim = floatTime * 0.05;
+          const x = Math.cos(elev) * Math.cos(azim);
+          const y = Math.sin(elev);
+          const z = Math.cos(elev) * Math.sin(azim);
+          // Return vector from sun toward scene (downward)
+          return [-x, -y, -z];
+        }
 
         function render() {
           resize();
@@ -274,6 +420,19 @@
           gl.useProgram(prog);
           gl.uniform1f(u_time, t);
           gl.uniform2f(u_resolution, canvas.width, canvas.height);
+          // Gentle varying wind with slight rotation over time
+          const windSpeed = 0.015; // world units per second
+          const windDir = [Math.cos(t * 0.07), Math.sin(t * 0.05 + 1.2)];
+          gl.uniform2f(u_wind, windDir[0] * windSpeed, windDir[1] * windSpeed);
+
+          const sd = sunDirection(t);
+          gl.uniform3f(u_sunDir, sd[0], sd[1], sd[2]);
+          gl.uniform3f(u_sunColor, 1.0, 0.97, 0.92); // warm sunlight
+          gl.uniform1f(u_coverage, params.coverage);
+          gl.uniform1f(u_density, params.density);
+          gl.uniform1f(u_thickness, params.thickness);
+          gl.uniform1f(u_scale, params.scale);
+          gl.uniform1f(u_lightAbsorption, params.lightAbsorption);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
           requestAnimationFrame(render);
         }
