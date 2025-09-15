@@ -200,22 +200,24 @@
             // animate the sample coordinates
             float t = u_time * 0.03;
             vec2 q = uv + vec2(t * 0.7, t * 0.3);
-            float n = fbm(q * 1.3);
-            float clouds = smoothstep(0.45, 0.8, n);
 
-            // Add finer detail
-            float detail = fbm(q * 3.0 + 100.0);
-            clouds += 0.15 * detail;
+            // increase base FBM scale for larger masses
+            float n = fbm(q * 1.6);
+            // lower threshold to produce thicker clouds
+            float clouds = smoothstep(0.35, 0.78, n);
+
+            // Add stronger finer detail to thicken edges
+            float detail = fbm(q * 3.5 + 100.0);
+            clouds += 0.28 * detail;
             clouds = clamp(clouds, 0.0, 1.0);
 
-            // color: white clouds with soft edges
-            vec3 cloudColor = vec3(1.0);
-            float alpha = clouds * 0.45; // semi-transparent; lowered so sky shows through
+            // color: whiter clouds — pull fully to white for dense areas
+            vec3 cloudColor = mix(vec3(1.0), vec3(1.06,1.06,1.08), clouds);
+            // make clouds mostly opaque where density is high; keep a small fade for edges
+            float alpha = smoothstep(0.15, 0.6, clouds);
+            alpha = mix(0.05, 0.98, alpha); // edges small alpha, cores almost opaque
 
-            // darken slightly based on cloud density for depth
-            cloudColor *= mix(0.9, 1.0, clouds);
-
-            // final output: premultiplied alpha-like blending
+            // final output: straight alpha (we requested premultipliedAlpha: false)
             gl_FragColor = vec4(cloudColor, alpha);
           }
         `;
