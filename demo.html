@@ -140,10 +140,25 @@
         left: 50%;
         transform: translate(-50%, -50%);
       }
+
+      #metrics-box {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 20px;
+        color: white;
+        font-family: monospace;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
     </style>
 
     <div id="element"></div>
-    <div id="text">青空</div>
+        <div id="text">天空</div>
+    <div id="metrics-box"></div>
 
     <!-- Fullscreen transparent canvas for physically-inspired volumetric clouds (WebGL) -->
     <canvas id="clouds" aria-hidden="true"></canvas>
@@ -373,6 +388,7 @@
       <div id="location-display"></div>
       <div id="date-display"></div>
       <div id="clock-content-wrapper"></div>
+      <div id="metrics-display"></div>
     </div>
     <style>
       #clock {
@@ -430,6 +446,14 @@
           sans-serif;
         font-size: 16px;
       }
+      #metrics-display {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: white;
+        font-family: monospace;
+        font-size: 12px;
+      }
     </style>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -464,6 +488,17 @@
         }
         updateDateAndLocation();
         updateClock();
+
+        const metricsDisplay = document.getElementById('metrics-display');
+        window.addEventListener('nativeMetrics', (event) => {
+          const { cpu, memory, disk, network } = event.detail;
+          metricsDisplay.innerHTML = `
+            <strong>CPU:</strong> ${cpu.totalPercent.toFixed(2)}%<br>
+            <strong>Mem:</strong> ${(memory.usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB / ${(memory.totalBytes / 1024 / 1024 / 1024).toFixed(2)}GB<br>
+            <strong>Disk:</strong> ${(disk.freeBytes / 1024 / 1024 / 1024).toFixed(2)}GB free<br>
+            <strong>Net:</strong> DL: ${(network.rxBytesPerSec / 1024).toFixed(2)}KB/s, UL: ${(network.txBytesPerSec / 1024).toFixed(2)}KB/s
+          `;
+        });
       });
     </script>
   </body>
