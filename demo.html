@@ -90,7 +90,7 @@
 
       /* Use blue_sky.jpg as a full-screen responsive background while preserving aspect ratio */
       body {
-        background-image: url('blue_sky.jpg');
+        background-image: url("blue_sky.jpg");
         background-size: cover; /* scale the image to cover the viewport while keeping aspect ratio */
         background-position: center center; /* center the image */
         background-repeat: no-repeat;
@@ -116,17 +116,21 @@
 
     <script>
       // WebGL volumetric clouds: physically-inspired single-scattering with advection
-  (async function () {
-        const canvas = document.getElementById('clouds');
+      (async function () {
+        const canvas = document.getElementById("clouds");
         // Request a WebGL context with alpha and without premultiplied alpha to simplify blending
-        const gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
+        const gl = canvas.getContext("webgl", {
+          alpha: true,
+          antialias: true,
+          premultipliedAlpha: false,
+        });
         if (!gl) return; // WebGL not available
 
         // resize handling
         function resize() {
           // Render at reduced resolution for performance (scaled up via CSS)
-          const targetDPR = 1.0;     // cap device pixel ratio for speed
-          const renderScale = 0.66;  // render ~66% of viewport resolution for 120Hz
+          const targetDPR = 1.0; // cap device pixel ratio for speed
+          const renderScale = 0.66; // render ~66% of viewport resolution for 120Hz
           const device = Math.max(1, window.devicePixelRatio || 1);
           const dpr = Math.min(device, targetDPR) * renderScale;
           const w = Math.floor(window.innerWidth * dpr);
@@ -134,33 +138,37 @@
           if (canvas.width !== w || canvas.height !== h) {
             canvas.width = w;
             canvas.height = h;
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
+            canvas.style.width = window.innerWidth + "px";
+            canvas.style.height = window.innerHeight + "px";
             gl.viewport(0, 0, w, h);
           }
         }
 
         // Make canvas full-screen and on top of background but behind UI
         Object.assign(canvas.style, {
-          position: 'fixed',
-          left: '0',
-          top: '0',
-          width: '100vw',
-          height: '100vh',
-          pointerEvents: 'none',
+          position: "fixed",
+          left: "0",
+          top: "0",
+          width: "100vw",
+          height: "100vh",
+          pointerEvents: "none",
           zIndex: 1,
         });
         // ensure CSS background is transparent in case user-agent paints a default
-        canvas.style.background = 'transparent';
+        canvas.style.background = "transparent";
 
         // Load shaders from external files for maintainability
         async function loadShaders() {
           const [vsResp, fsResp] = await Promise.all([
-            fetch('shaders/clouds.vert.glsl'),
-            fetch('shaders/clouds.frag.glsl')
+            fetch("shaders/clouds.vert.glsl"),
+            fetch("shaders/clouds.frag.glsl"),
           ]);
           if (!vsResp.ok || !fsResp.ok) {
-            console.error('Failed to load shader files', vsResp.status, fsResp.status);
+            console.error(
+              "Failed to load shader files",
+              vsResp.status,
+              fsResp.status
+            );
             return { vs: null, fs: null };
           }
           const vs = await vsResp.text();
@@ -180,7 +188,7 @@
           gl.shaderSource(s, source);
           gl.compileShader(s);
           if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-            console.error('Shader compile error:', gl.getShaderInfoLog(s));
+            console.error("Shader compile error:", gl.getShaderInfoLog(s));
             gl.deleteShader(s);
             return null;
           }
@@ -192,16 +200,16 @@
         const prog = gl.createProgram();
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
-        gl.bindAttribLocation(prog, 0, 'a_pos');
+        gl.bindAttribLocation(prog, 0, "a_pos");
         gl.linkProgram(prog);
         if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-          console.error('Program link error', gl.getProgramInfoLog(prog));
+          console.error("Program link error", gl.getProgramInfoLog(prog));
           return;
         }
-  gl.useProgram(prog);
-  // Enable alpha blending so clouds composite over the page background
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.useProgram(prog);
+        // Enable alpha blending so clouds composite over the page background
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
         // fullscreen triangle
         const quad = gl.createBuffer();
@@ -212,26 +220,29 @@
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
         // uniforms
-        const u_time = gl.getUniformLocation(prog, 'u_time');
-        const u_resolution = gl.getUniformLocation(prog, 'u_resolution');
-        const u_wind = gl.getUniformLocation(prog, 'u_wind');
-        const u_sunDir = gl.getUniformLocation(prog, 'u_sunDir');
-        const u_sunColor = gl.getUniformLocation(prog, 'u_sunColor');
-        const u_coverage = gl.getUniformLocation(prog, 'u_coverage');
-        const u_density = gl.getUniformLocation(prog, 'u_density');
-        const u_thickness = gl.getUniformLocation(prog, 'u_thickness');
-        const u_scale = gl.getUniformLocation(prog, 'u_scale');
-        const u_lightAbsorption = gl.getUniformLocation(prog, 'u_lightAbsorption');
+        const u_time = gl.getUniformLocation(prog, "u_time");
+        const u_resolution = gl.getUniformLocation(prog, "u_resolution");
+        const u_wind = gl.getUniformLocation(prog, "u_wind");
+        const u_sunDir = gl.getUniformLocation(prog, "u_sunDir");
+        const u_sunColor = gl.getUniformLocation(prog, "u_sunColor");
+        const u_coverage = gl.getUniformLocation(prog, "u_coverage");
+        const u_density = gl.getUniformLocation(prog, "u_density");
+        const u_thickness = gl.getUniformLocation(prog, "u_thickness");
+        const u_scale = gl.getUniformLocation(prog, "u_scale");
+        const u_lightAbsorption = gl.getUniformLocation(
+          prog,
+          "u_lightAbsorption"
+        );
 
         let start = performance.now();
 
         // Default physical-ish parameters
         const params = {
-          coverage: 0.55,      // higher -> fewer/thinner clouds
-          density: 0.9,        // lower opacity overall
-          thickness: 1.2,      // kept for volumetric path
-          scale: 0.3,         // spatial scale
-          lightAbsorption: 1.5 // volumetric path only
+          coverage: 0.55, // higher -> fewer/thinner clouds
+          density: 0.9, // lower opacity overall
+          thickness: 1.2, // kept for volumetric path
+          scale: 0.3, // spatial scale
+          lightAbsorption: 1.5, // volumetric path only
         };
 
         function sunDirection(t) {
@@ -255,7 +266,7 @@
           resize();
           const now = performance.now();
           const t = (now - start) / 1000.0;
-          if (minFrameTime > 0.0 && (t - lastRenderT) < minFrameTime) {
+          if (minFrameTime > 0.0 && t - lastRenderT < minFrameTime) {
             requestAnimationFrame(render);
             return;
           }
@@ -269,7 +280,11 @@
           const windSpeed = 0.006; // world units per second
           const windDir = [0.7, 0.2];
           const len = Math.hypot(windDir[0], windDir[1]) || 1.0;
-          gl.uniform2f(u_wind, (windDir[0] / len) * windSpeed, (windDir[1] / len) * windSpeed);
+          gl.uniform2f(
+            u_wind,
+            (windDir[0] / len) * windSpeed,
+            (windDir[1] / len) * windSpeed
+          );
 
           const sd = sunDirection(t);
           gl.uniform3f(u_sunDir, sd[0], sd[1], sd[2]);
@@ -286,10 +301,9 @@
 
         // start
         resize();
-        window.addEventListener('resize', resize);
+        window.addEventListener("resize", resize);
         requestAnimationFrame(render);
       })();
     </script>
-
   </body>
 </html>
