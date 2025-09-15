@@ -124,9 +124,26 @@
         display: block;
         background: transparent;
       }
+
+      @font-face {
+        font-family: 'Noto Sans JP';
+        src: url('NotoSansJP-VariableFont_wght.ttf') format('truetype');
+      }
+
+      #text {
+        font-family: 'Noto Sans JP', sans-serif;
+        font-size: 10rem;
+        color: white;
+        text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        position: fixed;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
     </style>
 
     <div id="element"></div>
+    <div id="text">青空</div>
 
     <!-- Fullscreen transparent canvas for physically-inspired volumetric clouds (WebGL) -->
     <canvas id="clouds" aria-hidden="true"></canvas>
