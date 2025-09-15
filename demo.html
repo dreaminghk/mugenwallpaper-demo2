@@ -374,34 +374,24 @@
       <div id="location-display"></div>
       <div id="date-display"></div>
       <div id="clock-content-wrapper"></div>
-    </div>
-
-    <div id="metrics-container">
-      <div class="metric-box">
-        <div class="metric-title">CPU</div>
-        <div id="cpu-metric" class="metric-value">-</div>
-      </div>
-      <div class="metric-box">
-        <div class="metric-title">RAM</div>
-        <div id="ram-metric" class="metric-value">-</div>
-      </div>
-      <div class="metric-box">
-        <div class="metric-title">Disk</div>
-        <div id="disk-metric" class="metric-value">-</div>
-      </div>
-      <div class="metric-box">
-        <div class="metric-title">Net</div>
-        <div id="net-metric" class="metric-value">-</div>
+      <div id="metrics-display-line">
+        <span class="metric-title">CPU</span> <span id="cpu-metric" class="metric-value">-</span>
+        <span class="metric-title">RAM</span> <span id="ram-metric" class="metric-value">-</span>
+        <span class="metric-title">Disk</span> <span id="disk-metric" class="metric-value">-</span>
+        <span class="metric-title">Net</span> <span id="net-metric" class="metric-value">-</span>
       </div>
     </div>
     <style>
       #clock {
         position: absolute;
-        top: 50%;
+        top: 50%; /* Center vertically */
         left: 50%;
-        top: 70%;
         transform: translate(-50%, -50%);
-        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px; /* Keep padding for overall clock box */
       }
       #clock-content-wrapper {
         position: relative;
@@ -410,7 +400,6 @@
         font-family: "NotoSansJPVariable", system-ui, -apple-system, "Segoe UI",
           Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans",
           sans-serif;
-        padding-top: 40px;
       }
       .ampm-text {
         font-size: 36px;
@@ -418,7 +407,8 @@
       .clock-backdrop {
         position: absolute;
         inset: 0;
-        height: 200%;
+        height: 100%; /* Cover the entire clock div */
+        width: 100%; /* Cover the entire clock div */
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         mask-image: url(#frostyGlassMask);
@@ -459,50 +449,31 @@
         font-size: 12px;
       }
 
-      #metrics-container {
-        position: absolute;
-        top: 10%;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-      }
-
-      .metric-box {
-        border-radius: 10px;
-        padding: 20px;
+      #metrics-display-line {
+        text-align: center;
+        margin-top: 10px; /* Add margin to separate from clock time */
         color: white;
         font-family: "NotoSansJPVariable", system-ui, -apple-system, "Segoe UI",
           Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Noto Sans",
           sans-serif;
-        width: 150px;
-        height: 80px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        mask-image: url(#frostyGlassMask);
-        -webkit-mask-image: url(#frostyGlassMask);
-        pointer-events: none;
+        font-size: 12px; /* Overall small font size for metrics */
       }
 
-      .metric-title {
-        font-size: 16px;
+      #metrics-display-line .metric-title {
         font-weight: bold;
+        margin-left: 10px;
       }
 
-      .metric-value {
-        font-size: 20px;
+      #metrics-display-line .metric-value {
+        margin-right: 10px;
       }
 
-      .net-label {
+      #metrics-display-line .net-label {
+        font-size: 8px;
+      }
+
+      #metrics-display-line .net-value {
         font-size: 10px;
-      }
-
-      .net-value {
-        font-size: 16px;
       }
     </style>
     <script>
