@@ -7,14 +7,6 @@ You can use the github page link (https://dreaminghk.github.io/mugenwallpaper-de
 
 Click [here](https://dreaminghk.github.io/mugenwallpaper-demo2/demo.html) to see the demo
 
-Attribution:
-
-Cloud shader is created by ChatGPT and Codex with some adjustment.
-
-Sky picture by Vedad Colic from [Pixel](https://www.pexels.com/photo/white-clothes-under-blue-sky-577279/)
-
-Noto Sans JP font from [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
-
 # Web integration guide for Mugen Wallpaper
 
 This document explains how a web page running inside the app’s WKWebView can consume:
@@ -80,4 +72,13 @@ The `window.screenIndex` property indicates the index of the screen where the we
 - And so on for additional screens.
 
 You can use this value to adjust your web wallpaper's content or layout based on which screen it's on.
+
+
+# Attribution:
+
+Cloud shader is created by ChatGPT and Codex with some adjustment.
+
+Sky picture by Vedad Colic from [Pixel](https://www.pexels.com/photo/white-clothes-under-blue-sky-577279/)
+
+Noto Sans JP font from [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
 
