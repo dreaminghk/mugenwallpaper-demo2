@@ -1,7 +1,7 @@
 # mugenwallpaper-demo2
 A demo web wallpaper that shows system utilization
 
-This is a demo web wallpaper created for [MuGen Wallpaper](https://www.mugenwallpaper.com).
+This is a demo web wallpaper created for [MuGen Wallpaper](https://www.mugenwallpaper.com). This demo aims to  demonstrate the way to consume the system information (CPU, RAM, Disk Space and Network usage) and screen index injected by MuGen Wallpaper.
 
 You can use the github page link (https://dreaminghk.github.io/mugenwallpaper-demo2/demo.html) of the wallpaper directly in the app.
 
@@ -30,7 +30,6 @@ No special setup is required on your page beyond adding event listeners.
 The app does not pass through raw mouse events from the system. Instead, it synthesizes `mousemove` events on the `window` object, providing only the `clientX` and `clientY` coordinates. This allows web wallpapers to react to mouse position without full event propagation.
 
 - Event type: "mousemove"
-- Dispatched on: window
 - Coordinates: `clientX`/`clientY` in CSS pixels, relative to the top-left of the viewport, matching standard browser semantics.
 
 Example usage in JavaScript:
@@ -69,6 +68,9 @@ window.addEventListener('mousemove', (event) => {
   },
   "screenIndex": 0
 }
+```
+
+3) Screen index
 
 ### screenIndex
 
@@ -78,4 +80,4 @@ The `window.screenIndex` property indicates the index of the screen where the we
 - And so on for additional screens.
 
 You can use this value to adjust your web wallpaper's content or layout based on which screen it's on.
-```
+
