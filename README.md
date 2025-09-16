@@ -63,9 +63,6 @@ window.addEventListener('mousemove', (event) => {
 ```
 
 3) Screen index
-
-### screenIndex
-
 The `window.screenIndex` property indicates the index of the screen where the web wallpaper is currently displayed.
 - `0`: Represents the primary or first screen.
 - `1`: Represents the second screen.
