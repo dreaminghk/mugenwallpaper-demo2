@@ -13,6 +13,8 @@ function cloud(config) {
     windDir = [0.7, 0.2],
     sunColor = [1.0, 0.97, 0.92],
     targetFPS = 0,
+    // When true, introduces a random seed to the shader noise domain
+    randomize = false,
   } = config || {};
 
   (async function () {
@@ -119,6 +121,7 @@ function cloud(config) {
       prog,
       "u_lightAbsorption"
     );
+    const u_rand = gl.getUniformLocation(prog, "u_rand");
 
     let start = performance.now();
 
@@ -129,6 +132,11 @@ function cloud(config) {
       scale,
       lightAbsorption,
     };
+
+    // Static random seed (per session) if enabled; zero otherwise
+    const randVec = randomize
+      ? [Math.random() * 1000.0, Math.random() * 1000.0, Math.random() * 1000.0]
+      : [0.0, 0.0, 0.0];
 
     function sunDirection(t) {
       const floatTime = t * 0.02;
@@ -171,6 +179,7 @@ function cloud(config) {
       gl.uniform1f(u_thickness, params.thickness);
       gl.uniform1f(u_scale, params.scale);
       gl.uniform1f(u_lightAbsorption, params.lightAbsorption);
+      gl.uniform3f(u_rand, randVec[0], randVec[1], randVec[2]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       lastRenderT = t;
       requestAnimationFrame(render);

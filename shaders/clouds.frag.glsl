@@ -10,6 +10,7 @@ uniform float u_density;    // density scale
 uniform float u_thickness;  // cloud layer thickness in arbitrary units
 uniform float u_scale;      // spatial frequency scale
 uniform float u_lightAbsorption; // how quickly light is absorbed
+uniform vec3 u_rand;       // random offset for noise domain
 
 const bool FAST_MODE = true; // ultra-fast 2D lighting approximation for 120Hz
 
@@ -19,6 +20,7 @@ float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758
 
 // 2D value noise
 float noise(vec2 p) {
+  p += u_rand.xy; // introduce seed-driven offset
   vec2 i = floor(p);
   vec2 f = fract(p);
   // four corners
@@ -32,6 +34,7 @@ float noise(vec2 p) {
 
 // 3D value noise
 float noise3(vec3 p) {
+  p += u_rand; // introduce seed-driven offset
   vec3 i = floor(p);
   vec3 f = fract(p);
   float n000 = hash3(i + vec3(0.0, 0.0, 0.0));

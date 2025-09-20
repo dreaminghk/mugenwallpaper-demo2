@@ -46,3 +46,16 @@ The `cloud()` function takes an optional configuration object with the following
 | `windDir`         | `array`   | `[0.7, 0.2]`  | The direction of the wind.                                  |
 | `sunColor`        | `array`   | `[1.0, 0.97, 0.92]` | The color of the sun.                                     |
 | `targetFPS`       | `number`  | `0`           | The target frames per second (0 for unlimited).             |
+| `randomize`       | `boolean` | `false`       | If true, applies a random seed to the cloud noise pattern.  |
+
+### Example with randomness
+
+```html
+<script>
+  cloud({
+    coverage: 0.5,
+    density: 0.9,
+    randomize: true, // new: randomize the cloud layout per page load
+  });
+</script>
+```
