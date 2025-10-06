@@ -1,0 +1,8 @@
+{
+    "title": "Blue sky with Clouds",     
+    "description": "Created by MUGEN Wallpaper as a demonstration to show system utilization and different views in different screens"  , 
+    "type": "web",
+    "version": "1.0.0",
+    "thumbFilePath": "thumbnail.gif",           
+    "entrypoint": "demo.html"
+}
